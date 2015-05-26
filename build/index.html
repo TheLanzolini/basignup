@@ -1,0 +1,250 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdn.firebase.com/js/client/2.2.5/firebase.js"></script>
+    <title>Battle Arena Sign Up</title>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/3.0.3/normalize.min.css">
+    <link href='https://fonts.googleapis.com/css?family=Roboto+Condensed:400,300' rel='stylesheet' type='text/css'>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  </head>
+  <script type="text/javascript">
+    jQuery(function($){
+      var db = new Firebase("https://basignup.firebaseio.com/");
+      var isSet = false;
+      if(window.localStorage.getItem('basummoner')){
+        var summoner = JSON.parse(window.localStorage.getItem('basummoner'));
+        console.log(summoner);
+        $('#ign').val(summoner.name);
+      }
+      db.child("meta/header_text").on("value", function(snapshot){
+        $('.header').html(snapshot.val());
+      });  
+      db.child("meta/notifications").on("value", function(snapshot){
+        var notifications = snapshot.val();
+        for(var i=0;i<notifications.length;i++){
+          var n = $('.notification.template').clone().addClass('cloned entering').removeClass('template');
+          n.html(notifications[i]);
+          $('.notifications-container').append(n);
+        }
+      });
+      db.child("meta/schedule").on("value", function(sched){
+        db.child("participants").on("value", function(part){
+          var participants = part.val();
+          var schedule = sched.val();
+          var column = $('.column.template').clone().removeClass('template').addClass('cloned');
+          var table = $('.participants.table');
+          isSet ? table.find('.cloned').remove() : $.noop();
+          var days = Object.keys(schedule);
+          console.log(days);
+          for(var i=0;i<days.length;i++){
+            for(var j=0;j<schedule[days[i]].length;j++){
+              console.log(schedule[days[i]][j]);
+              var d = $('#day .template').clone().removeClass('template').addClass('cloned');
+              d.html(days[i] + ' ' + schedule[days[i]][j]);
+              $('#day').append(d);
+            }
+          }
+          $.each(schedule, function(key, value){
+            for(var i=0;i<value.length;i++){
+              var c = column.clone();
+              c.find('.day-time').html(key+' '+value[i]);
+              if(participants[key]){
+                var p = participants[key][value[i]];
+                for(var j=0;j<p.length;j++){
+                  var row = c.find('.participant.template').clone().removeClass('template').addClass('cloned');
+                  row.find('.participant-name').html(p[j].ign);
+                  row.find('.participant-rank').html(p[j].rank);
+                  row.find('.participant-pref').html(p[j].pref);
+                  c.append(row);
+                }
+              }
+              table.append(c);
+            }
+          });
+          isSet = true;
+        });
+      });
+      $('#ign-check').click(function(){
+        var input = $('#ign').val();
+        var key = "662f5bb2-350f-4b2d-b6fc-038e17b04827";
+        var sum_id = "21506342";
+        var url = "https://na.api.pvp.net/api/lol/na/v1.4/summoner/by-name/"+input+"?api_key="+key;
+        $.ajax({
+          method: "GET",
+          url: url,
+          dataType: "json",
+          success: function(data){
+            console.log('data', data);
+            var sum_id = data[input].id;
+            var grab = "https://na.api.pvp.net/api/lol/na/v2.5/league/by-summoner/"+sum_id+"/entry?api_key="+key; 
+            $.ajax({
+              method: "GET",
+              url: grab,
+              dataType: "json",
+              success: function(data){
+                console.log('data', data[sum_id]);
+                for(var i=0;i<data[sum_id].length;i++){
+                  if(data[sum_id][i].queue == "RANKED_SOLO_5x5" && (data[sum_id][i].tier == "BRONZE" || data[sum_id][i].tier == "SILVER" || data[sum_id][i].tier == "GOLD")){
+                    saveIGN({
+                      name: input,
+                      id: sum_id,
+                      queue: data[sum_id][i].tier
+                    });
+                  }
+                }
+              },
+              error: function(e){ 
+                console.log('error', e);
+              }
+            });
+          },  
+          error: function(e){
+            console.log('error', e);
+            var n = $('.notification.template').clone().addClass('cloned entering error').removeClass('template');
+            n.html('Could not fine username, make sure it is spelled correctly');
+            $('.notifications-container').append(n);
+            setTimeout(function(){ $('.notification.cloned.error').remove(); }, 3000);
+          }
+        });
+      });
+      function saveIGN(summoner){
+        console.log(summoner);
+        window.localStorage.setItem('basummoner', JSON.stringify(summoner));
+      }
+      $('.submit-entry').click(function(){
+        // THE BIG SAVE FUNCTION
+      });
+    });
+  </script>
+  <style type="text/css">
+    *{
+      -webkit-font-smoothing: antialiased;
+      -mac-osx-font-smoothing: greyscale;
+      box-sizing: border-box;
+    }
+    html{
+      background-color: #F9F9F9;
+      font-family: 'Roboto Condensed', sans-serif;
+    }
+    body{
+      width: 960px;
+      margin: 0 auto;
+      background-color: white;
+    }
+    .header{
+      font-size: 42px;
+      line-height: 3em;
+      text-align: center;
+      background-color: #9C27B0;
+      color: white;
+    }
+    .template, .hidden{
+      display: none;
+    }
+    .notification{
+      font-size: 18px;
+      line-height: 2em;
+      background-color: #BA68C8;
+      color: white;
+      text-align: center;
+    }
+    .notification.error{
+      background-color: #F44336;
+    }
+    @-webkit-keyframes entering{
+      0%{
+        -webkit-transform: rotateX(-90deg);
+      }
+      50%{
+        -webkit-transform: rotateX(20deg);
+      }
+      100%{
+        -webkit-transform: rotateX(0deg);
+      }
+    }
+    .entering{
+      -webkit-animation-name: entering;
+      -webkit-animation-duration: 2.0s;
+      -webkit-animation-timing-function: ease;
+      -webkit-transform-origin: top;
+    }
+    .day.column{
+      width: 33.33%;
+      float: left;
+      text-align: center;
+      min-height: 225px;
+      border: 1px solid black;
+    }
+    .participants.table{
+      content: "";
+      display: table;
+      clear: both;
+      width: 100%;
+    }
+    .participant{
+      padding: 2px 0px;
+    }
+    .participant-name, .participant-rank, .participant-pref{
+      display: inline;
+      width: 33.33%;
+    }
+    .day-time{
+      text-transform: uppercase;
+      border-bottom: 1px solid black;
+    }
+  </style>
+  <body>
+    <div class="header"></div>
+    <div class="notifications-container">
+      <div class="notification template"></div>
+    </div>
+    <div class="main">
+      <div class="participants table">
+        <div class="day column template">
+          <div class="day-time"></div>
+          <div class="participant template">
+            <div class="participant-name"></div>
+            <div class="participant-rank"></div>
+            <div class="participant-pref"></div>
+          </div>
+        </div>
+      </div>
+      <div class="entry-form">
+        <div class="input-row">
+          <label for="ign">Summoner Name</label>
+          <input id="ign" type="text"/>
+          <button id="ign-check">Confirm</button>
+        </div>
+        <div class="input-row">
+          <label for="pref">Which role do you prefer?</label>
+          <select id="#pref">
+            <option>TOP</option>
+            <option>JNG</option>
+            <option>MID</option>
+            <option>ADC</option>
+            <option>SUP</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <label for="day">Which day and time can you play?</label>
+          <select id="day">
+            <option class="template"></option>
+          </select>
+        </div>
+        <div class="input-row">
+          <button class="submit-entry">Submit</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
