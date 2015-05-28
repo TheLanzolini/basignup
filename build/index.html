@@ -13,8 +13,7 @@
       var isSet = false;
       if(window.localStorage.getItem('basummoner')){
         var summoner = JSON.parse(window.localStorage.getItem('basummoner'));
-        console.log(summoner);
-        $('#ign').val(summoner.name);
+        $('#ign').val(summoner.ign);
       }
       db.child("meta/header_text").on("value", function(snapshot){
         $('.header').html(snapshot.val());
@@ -27,7 +26,7 @@
           $('.notifications-container').append(n);
         }
       });
-      db.child("meta/schedule").on("value", function(sched){
+      db.child("meta/schedule").once("value", function(sched){
         db.child("participants").on("value", function(part){
           var participants = part.val();
           var schedule = sched.val();
@@ -35,10 +34,8 @@
           var table = $('.participants.table');
           isSet ? table.find('.cloned').remove() : $.noop();
           var days = Object.keys(schedule);
-          console.log(days);
           for(var i=0;i<days.length;i++){
             for(var j=0;j<schedule[days[i]].length;j++){
-              console.log(schedule[days[i]][j]);
               var d = $('#day .template').clone().removeClass('template').addClass('cloned');
               d.html(days[i] + ' ' + schedule[days[i]][j]);
               $('#day').append(d);
@@ -50,12 +47,16 @@
               c.find('.day-time').html(key+' '+value[i]);
               if(participants[key]){
                 var p = participants[key][value[i]];
-                for(var j=0;j<p.length;j++){
-                  var row = c.find('.participant.template').clone().removeClass('template').addClass('cloned');
-                  row.find('.participant-name').html(p[j].ign);
-                  row.find('.participant-rank').html(p[j].rank);
-                  row.find('.participant-pref').html(p[j].pref);
-                  c.append(row);
+                console.log(p);
+                if(p){
+                  for(var j=0;j<p.length;j++){
+                    var row = c.find('.participant.template').clone().removeClass('template').addClass('cloned');
+                    console.log(p[j]);
+                    row.find('.participant-name').html(p[j].ign);
+                    row.find('.participant-rank').html(p[j].rank);
+                    row.find('.participant-pref').html(p[j].pref);
+                    c.append(row);
+                  }
                 }
               }
               table.append(c);
@@ -74,7 +75,6 @@
           url: url,
           dataType: "json",
           success: function(data){
-            console.log('data', data);
             var sum_id = data[input].id;
             var grab = "https://na.api.pvp.net/api/lol/na/v2.5/league/by-summoner/"+sum_id+"/entry?api_key="+key; 
             $.ajax({
@@ -82,19 +82,29 @@
               url: grab,
               dataType: "json",
               success: function(data){
-                console.log('data', data[sum_id]);
                 for(var i=0;i<data[sum_id].length;i++){
                   if(data[sum_id][i].queue == "RANKED_SOLO_5x5" && (data[sum_id][i].tier == "BRONZE" || data[sum_id][i].tier == "SILVER" || data[sum_id][i].tier == "GOLD")){
                     saveIGN({
-                      name: input,
+                      ign: input,
                       id: sum_id,
-                      queue: data[sum_id][i].tier
+                      rank: data[sum_id][i].tier
                     });
+                  }else if(data[sum_id][i].queue == "RANKED_SOLO_5x5"){
+                    var n = $('.notification.template').clone().addClass('cloned entering error').removeClass('template');
+                    n.html('You unfortunately cannot participate due to high rank of:'+data[sum_id][i].queue + ' '+ data[sum_id][i].tier);
+                    $('.notifications-container').append(n);
+                    setTimeout(function(){ $('.notification.cloned.error').remove(); }, 10000);
                   }
                 }
               },
               error: function(e){ 
-                console.log('error', e);
+                // console.log('error', e);
+                console.log('is unranked, can still sign up');
+                saveIGN({
+                  ign: input,
+                  id: sum_id,
+                  rank: "UNRANKED"
+                });
               }
             });
           },  
@@ -108,11 +118,34 @@
         });
       });
       function saveIGN(summoner){
-        console.log(summoner);
         window.localStorage.setItem('basummoner', JSON.stringify(summoner));
       }
       $('.submit-entry').click(function(){
         // THE BIG SAVE FUNCTION
+        var participants = db.child('participants');
+        participants.once("value", function(data){
+          var selected_day_time = $('#day').val() 
+          if(!selected_day_time){
+            //show some notification that you want to play X time
+          }
+          var selection = selected_day_time.split(' ');
+          var p = data.val();
+          if(!p[selection[0]]){
+            p[selection[0]] = {};
+          }
+          if(!p[selection[0]][selection[1]]){
+            p[selection[0]][selection[1]] = [];
+          }
+          var summoner = window.localStorage.getItem('basummoner');
+          if(!summoner){
+            return alert('You need to confirm your IGN before you can sign up!');
+          }
+          summoner = JSON.parse(summoner);
+          summoner.timestamp = new Date().getTime();
+          summoner.pref = $('#pref').val();
+          p[selection[0]][selection[1]].push(summoner);
+          participants.update(p);
+        });
       });
     });
   </script>
@@ -217,7 +250,8 @@
         </div>
         <div class="input-row">
           <label for="pref">Which role do you prefer?</label>
-          <select id="#pref">
+          <select id="pref">
+            <option></option>
             <option>TOP</option>
             <option>JNG</option>
             <option>MID</option>
