@@ -217,9 +217,26 @@
     .participant{
       padding: 2px 0px;
     }
+    .participant{
+      content: "";
+      display: table;
+      clear: both;
+      width: 100%;
+      line-height: 1.25em;
+    }
     .participant-name, .participant-rank, .participant-pref{
-      display: inline;
-      width: 33.33%;
+      float: left;
+    }
+    .participant-name{
+      width: 40%;
+      margin-left: 10%;
+      text-align: left;
+    }
+    .participant-rank{
+      width: 25%;
+    }
+    .participant-pref{
+      width: 25%;
     }
     .day-time{
       text-transform: uppercase;
