@@ -34,6 +34,7 @@
           var table = $('.participants.table');
           isSet ? table.find('.cloned').remove() : $.noop();
           var days = Object.keys(schedule);
+          $('#day .cloned').remove();
           for(var i=0;i<days.length;i++){
             for(var j=0;j<schedule[days[i]].length;j++){
               var d = $('#day .template').clone().removeClass('template').addClass('cloned');
@@ -47,11 +48,9 @@
               c.find('.day-time').html(key+' '+value[i]);
               if(participants[key]){
                 var p = participants[key][value[i]];
-                console.log(p);
                 if(p){
                   for(var j=0;j<p.length;j++){
                     var row = c.find('.participant.template').clone().removeClass('template').addClass('cloned');
-                    console.log(p[j]);
                     row.find('.participant-name').html(p[j].ign);
                     row.find('.participant-rank').html(p[j].rank);
                     row.find('.participant-pref').html(p[j].pref);
@@ -67,14 +66,16 @@
       });
       $('#ign-check').click(function(){
         var input = $('#ign').val();
+        input = input.replace(/\s/g, "");
+        input = input.toLowerCase();
         var key = "662f5bb2-350f-4b2d-b6fc-038e17b04827";
-        var sum_id = "21506342";
         var url = "https://na.api.pvp.net/api/lol/na/v1.4/summoner/by-name/"+input+"?api_key="+key;
         $.ajax({
           method: "GET",
           url: url,
           dataType: "json",
           success: function(data){
+            console.log(data, input);
             var sum_id = data[input].id;
             var grab = "https://na.api.pvp.net/api/lol/na/v2.5/league/by-summoner/"+sum_id+"/entry?api_key="+key; 
             $.ajax({
@@ -98,7 +99,6 @@
                 }
               },
               error: function(e){ 
-                // console.log('error', e);
                 console.log('is unranked, can still sign up');
                 saveIGN({
                   ign: input,
@@ -109,7 +109,6 @@
             });
           },  
           error: function(e){
-            console.log('error', e);
             var n = $('.notification.template').clone().addClass('cloned entering error').removeClass('template');
             n.html('Could not fine username, make sure it is spelled correctly');
             $('.notifications-container').append(n);
@@ -143,8 +142,23 @@
           summoner = JSON.parse(summoner);
           summoner.timestamp = new Date().getTime();
           summoner.pref = $('#pref').val();
-          p[selection[0]][selection[1]].push(summoner);
-          participants.update(p);
+          function isSignedUp(){
+            for(var i=0;i<p[selection[0]][selection[1]].length;i++){
+              var name = p[selection[0]][selection[1]][i];
+              console.log(name);
+              if(name.ign == summoner.ign){
+                return true;
+              }
+            }
+            return false;
+          }
+          
+          if(isSignedUp()){
+            alert('you are already signed up for this time!');
+          }else{
+            p[selection[0]][selection[1]].push(summoner);
+            participants.update(p);  
+          }
         });
       });
     });
@@ -241,6 +255,17 @@
     .day-time{
       text-transform: uppercase;
       border-bottom: 1px solid black;
+    }
+    .entry-form{
+      padding: 20px;
+      margin-top: 10px;
+      border: 1px solid #dfdfdf;
+      border-radius: 4px;
+      background-color: white;
+      text-align: center;
+    }
+    .input-row{
+      margin-bottom: 10px;
     }
   </style>
   <body>
