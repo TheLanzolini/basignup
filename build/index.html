@@ -11,6 +11,7 @@
     jQuery(function($){
       var db = new Firebase("https://basignup.firebaseio.com/");
       var isSet = false;
+      var ban_list;
       if(window.localStorage.getItem('basummoner')){
         var summoner = JSON.parse(window.localStorage.getItem('basummoner'));
         $('#ign').val(summoner.ign);
@@ -25,6 +26,9 @@
           n.html(notifications[i]);
           $('.notifications-container').append(n);
         }
+      });
+      db.child("meta/ban_list").once("value", function(list){
+        ban_list = list.val();
       });
       db.child("meta/schedule").once("value", function(sched){
         db.child("participants").on("value", function(part){
@@ -77,6 +81,22 @@
           success: function(data){
             console.log(data, input);
             var sum_id = data[input].id;
+            var sum_level = data[input].summonerLevel;
+            if(sum_level < 30){
+              return alert('You must be at least level 30 to participate.')
+            }
+            function isBanned(){
+              for(var i=0;i<ban_list.length;i++){
+                if(ban_list[i] == data[input].name || ban_list[i] == input){
+                  return true;
+                }
+              }
+              return false;
+            }
+            if( isBanned() ){
+              return alert('You are banned from joining the Battle Arena. Contact feedback@trinityforcenetwork for inquiries');
+            }
+            console.log(ban_list);
             var grab = "https://na.api.pvp.net/api/lol/na/v2.5/league/by-summoner/"+sum_id+"/entry?api_key="+key; 
             $.ajax({
               method: "GET",
